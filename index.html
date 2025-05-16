@@ -244,13 +244,6 @@
             color: var(--warning-orange);
         }
         
-        .timer {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 14px;
-            color: var(--warning-orange);
-        }
-        
         @media (max-width: 600px) {
             .container {
                 border-radius: 0;
@@ -286,10 +279,6 @@
             </div>
             
             <button id="check-button">Check Numbers</button>
-            
-            <div class="timer" id="timer" style="display: none;">
-                Next check in: <span id="countdown">10</span> seconds
-            </div>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -332,8 +321,6 @@
             const validCount = document.getElementById('valid-count');
             const invalidCount = document.getElementById('invalid-count');
             const errorCount = document.getElementById('error-count');
-            const timer = document.getElementById('timer');
-            const countdownDisplay = document.getElementById('countdown');
             
             let isChecking = false;
             let abortController = null;
@@ -342,8 +329,6 @@
                 invalid: 0,
                 errors: 0
             };
-            let countdownInterval;
-            let countdown = 10;
             
             // Initialize with sample data
             phoneNumbersInput.addEventListener('focus', function() {
@@ -363,11 +348,6 @@
             checkButton.addEventListener('click', async function() {
                 if (isChecking) {
                     abortVerification();
-                    return;
-                }
-                
-                if (timer.style.display !== 'none') {
-                    alert('Please wait for the cooldown period to finish');
                     return;
                 }
                 
@@ -395,7 +375,6 @@
                 } finally {
                     verificationComplete();
                     updateSummary();
-                    startCooldown();
                 }
             });
             
@@ -411,25 +390,8 @@
                 verificationStats = { valid: 0, invalid: 0, errors: 0 };
             }
             
-            function startCooldown() {
-                countdown = 10;
-                timer.style.display = 'block';
-                checkButton.disabled = true;
-                
-                countdownInterval = setInterval(() => {
-                    countdown--;
-                    countdownDisplay.textContent = countdown;
-                    
-                    if (countdown <= 0) {
-                        clearInterval(countdownInterval);
-                        timer.style.display = 'none';
-                        checkButton.disabled = false;
-                    }
-                }, 1000);
-            }
-            
             async function verifyNumbers(numbers) {
-                // Process one number at a time with 10 second delay
+                // Process one number at a time with 3 second delay
                 for (let i = 0; i < numbers.length; i++) {
                     if (abortController.signal.aborted) break;
                     
@@ -448,7 +410,7 @@
                     
                     // Skip delay for last number
                     if (i < numbers.length - 1 && !abortController.signal.aborted) {
-                        await new Promise(resolve => setTimeout(resolve, 10000));
+                        await new Promise(resolve => setTimeout(resolve, 3000));
                     }
                 }
             }
@@ -500,8 +462,6 @@
                     abortController.abort();
                     addErrorResult('Verification stopped by user');
                     verificationStats.errors++;
-                    clearInterval(countdownInterval);
-                    timer.style.display = 'none';
                 }
             }
             
