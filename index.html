@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Number Checker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --whatsapp-green: #25D366;
+            --whatsapp-dark-green: #128C7E;
+            --whatsapp-teal-green: #075E54;
+            --whatsapp-light-green: #DCF8C6;
+            --error-red: #FF4444;
+            --light-red: #FFEBEE;
+            --warning-orange: #FF9800;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background-color: var(--whatsapp-teal-green);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .checker-box {
+            padding: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--whatsapp-teal-green);
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            border-color: var(--whatsapp-green);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.2);
+        }
+        
+        .counter {
+            text-align: right;
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--whatsapp-green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        button:hover {
+            background-color: var(--whatsapp-dark-green);
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        button.stop {
+            background-color: var(--error-red);
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--whatsapp-green);
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            margin-top: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .result-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .valid-item {
+            background-color: var(--whatsapp-light-green);
+            border-left: 4px solid var(--whatsapp-green);
+        }
+        
+        .invalid-item {
+            background-color: var(--light-red);
+            border-left: 4px solid var(--error-red);
+        }
+        
+        .error-item {
+            background-color: #FFF3E0;
+            border-left: 4px solid var(--warning-orange);
+        }
+        
+        .result-icon {
+            font-size: 20px;
+            margin-right: 12px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .valid-icon {
+            color: var(--whatsapp-green);
+        }
+        
+        .invalid-icon {
+            color: var(--error-red);
+        }
+        
+        .error-icon {
+            color: var(--warning-orange);
+        }
+        
+        .result-text {
+            flex-grow: 1;
+        }
+        
+        .number {
+            font-family: monospace;
+            font-weight: bold;
+        }
+        
+        .status {
+            font-size: 14px;
+        }
+        
+        .progress-container {
+            height: 6px;
+            background-color: #eee;
+            margin-bottom: 15px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: var(--whatsapp-green);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        
+        .summary-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .summary-count {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .valid-count {
+            color: var(--whatsapp-green);
+        }
+        
+        .invalid-count {
+            color: var(--error-red);
+        }
+        
+        .error-count {
+            color: var(--warning-orange);
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                border-radius: 0;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            .summary {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fab fa-whatsapp"></i> WhatsApp Number Checker</h1>
+            <p>Check phone numbers for WhatsApp registration</p>
+        </header>
+        
+        <div class="checker-box">
+            <div class="input-group">
+                <label for="phone-numbers">Enter phone numbers with country code (one per line, max 30)</label>
+                <textarea id="phone-numbers" placeholder="12025551234&#10;+447700900123&#10;919876543210"></textarea>
+                <div class="counter"><span id="number-count">0</span>/30 numbers</div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            
+            <button id="check-button">Check Numbers</button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Checking numbers... <span id="progress-text">0%</span> complete</p>
+            </div>
+            
+            <div class="summary" id="summary" style="display: none;">
+                <div class="summary-item">
+                    <div class="summary-count valid-count" id="valid-count">0</div>
+                    <div>Valid</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-count invalid-count" id="invalid-count">0</div>
+                    <div>Invalid</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-count error-count" id="error-count">0</div>
+                    <div>Errors</div>
+                </div>
+            </div>
+            
+            <div class="results" id="results">
+                <div class="result-item" style="justify-content: center; color: #666;">
+                    Verification results will appear here
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkButton = document.getElementById('check-button');
+            const phoneNumbersInput = document.getElementById('phone-numbers');
+            const loading = document.getElementById('loading');
+            const resultsContainer = document.getElementById('results');
+            const numberCount = document.getElementById('number-count');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const summary = document.getElementById('summary');
+            const validCount = document.getElementById('valid-count');
+            const invalidCount = document.getElementById('invalid-count');
+            const errorCount = document.getElementById('error-count');
+            
+            let isChecking = false;
+            let abortController = null;
+            let verificationStats = {
+                valid: 0,
+                invalid: 0,
+                errors: 0
+            };
+            
+            phoneNumbersInput.addEventListener('input', function() {
+                const numbers = getPhoneNumbers();
+                const count = numbers.length;
+                numberCount.textContent = count;
+                checkButton.disabled = count === 0 || count > 30;
+            });
+            
+            checkButton.addEventListener('click', async function() {
+                if (isChecking) {
+                    abortVerification();
+                    return;
+                }
+                
+                const numbers = getPhoneNumbers();
+                if (numbers.length === 0) {
+                    alert('Please enter at least one phone number');
+                    return;
+                }
+                
+                if (numbers.length > 30) {
+                    alert('Maximum 30 numbers allowed');
+                    return;
+                }
+                
+                isChecking = true;
+                abortController = new AbortController();
+                checkButton.textContent = 'Stop Verification';
+                checkButton.classList.add('stop');
+                loading.style.display = 'block';
+                resultsContainer.innerHTML = '';
+                summary.style.display = 'none';
+                
+                // Reset verification stats
+                verificationStats = {
+                    valid: 0,
+                    invalid: 0,
+                    errors: 0
+                };
+                
+                try {
+                    await verifyNumbers(numbers);
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.error('Verification error:', error);
+                        addErrorResult(`Error: ${error.message}`);
+                        verificationStats.errors++;
+                    }
+                } finally {
+                    verificationComplete();
+                    updateSummary();
+                }
+            });
+            
+            async function verifyNumbers(numbers) {
+                let verifiedCount = 0;
+                const totalNumbers = numbers.length;
+                
+                // Rate limiting: 5 requests per second
+                const REQUESTS_PER_SECOND = 5;
+                const DELAY_BETWEEN_BATCHES = 1000; // 1 second
+                const BATCH_SIZE = REQUESTS_PER_SECOND;
+                
+                for (let i = 0; i < numbers.length; i += BATCH_SIZE) {
+                    if (abortController.signal.aborted) break;
+                    
+                    const batch = numbers.slice(i, i + BATCH_SIZE);
+                    const batchPromises = batch.map(number => 
+                        checkWhatsAppNumber(number).catch(error => {
+                            console.error(`Error checking ${number}:`, error);
+                            addErrorResult(`Error checking ${formatPhoneNumber(number)}: ${error.message}`);
+                            verificationStats.errors++;
+                            return null;
+                        })
+                    );
+                    
+                    const batchResults = await Promise.all(batchPromises);
+                    
+                    for (let j = 0; j < batchResults.length; j++) {
+                        if (abortController.signal.aborted) break;
+                        
+                        const result = batchResults[j];
+                        if (result !== null) {
+                            const number = batch[j];
+                            addResult(number, result.isValid);
+                            if (result.isValid) {
+                                verificationStats.valid++;
+                            } else {
+                                verificationStats.invalid++;
+                            }
+                        }
+                        
+                        verifiedCount++;
+                        updateProgress(verifiedCount, totalNumbers);
+                    }
+                    
+                    if (i + BATCH_SIZE < numbers.length && !abortController.signal.aborted) {
+                        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+                    }
+                }
+            }
+            
+            async function checkWhatsAppNumber(number) {
+                // Validate the number format first
+                if (!isValidPhoneNumber(number)) {
+                    throw new Error('Invalid phone number format');
+                }
+                
+                try {
+                    // Simulate API request with timeout
+                    const response = await simulateApiRequest(number);
+                    
+                    // Parse response
+                    if (response.status === 'success') {
+                        return { isValid: response.isRegistered };
+                    } else {
+                        throw new Error(response.message || 'Unknown API error');
+                    }
+                } catch (error) {
+                    throw new Error(`API request failed: ${error.message}`);
+                }
+            }
+            
+            function simulateApiRequest(number) {
+                return new Promise((resolve, reject) => {
+                    // Simulate network latency (100-500ms)
+                    const delay = 100 + Math.random() * 400;
+                    
+                    setTimeout(() => {
+                        // Simulate occasional network errors (10% chance)
+                        if (Math.random() < 0.1) {
+                            reject(new Error('Network error'));
+                            return;
+                        }
+                        
+                        // Simulate API response
+                        resolve({
+                            status: 'success',
+                            isRegistered: Math.random() > 0.3, // 70% valid for demo
+                            number: number,
+                            timestamp: new Date().toISOString()
+                        });
+                    }, delay);
+                });
+            }
+            
+            function isValidPhoneNumber(number) {
+                // Remove all non-digit characters except potential leading +
+                const cleaned = number.replace(/[^\d+]/g, '');
+                
+                // Check if number starts with + and has proper length
+                if (cleaned.startsWith('+')) {
+                    return cleaned.length >= 8 && cleaned.length <= 15;
+                }
+                
+                // If no +, check if it's digits only with proper length
+                if (/^\d+$/.test(cleaned)) {
+                    return cleaned.length >= 7 && cleaned.length <= 14;
+                }
+                
+                return false;
+            }
+            
+            function normalizePhoneNumber(number) {
+                // Remove all non-digit characters
+                let cleaned = number.replace(/\D/g, '');
+                
+                // If number doesn't start with +, add it if it's international
+                if (!number.startsWith('+')) {
+                    // This is a simple approach - in production you might want to validate country codes
+                    cleaned = '+' + cleaned;
+                } else {
+                    cleaned = '+' + cleaned;
+                }
+                
+                return cleaned;
+            }
+            
+            function abortVerification() {
+                if (abortController) {
+                    abortController.abort();
+                    verificationComplete();
+                    addErrorResult('Verification stopped by user');
+                    verificationStats.errors++;
+                    updateSummary();
+                }
+            }
+            
+            function verificationComplete() {
+                isChecking = false;
+                loading.style.display = 'none';
+                checkButton.textContent = 'Check Numbers';
+                checkButton.classList.remove('stop');
+                abortController = null;
+            }
+            
+            function updateProgress(completed, total) {
+                const progress = Math.round((completed / total) * 100);
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${progress}%`;
+            }
+            
+            function getPhoneNumbers() {
+                return phoneNumbersInput.value
+                    .split('\n')
+                    .map(num => num.trim())
+                    .filter(num => {
+                        if (num === '') return false;
+                        return isValidPhoneNumber(num);
+                    })
+                    .map(num => normalizePhoneNumber(num))
+                    .slice(0, 30);
+            }
+            
+            function addResult(number, isValid) {
+                const resultItem = document.createElement('div');
+                resultItem.className = `result-item ${isValid ? 'valid-item' : 'invalid-item'}`;
+                
+                resultItem.innerHTML = `
+                    <div class="result-icon">
+                        <i class="fas ${isValid ? 'fa-check-circle valid-icon' : 'fa-times-circle invalid-icon'}"></i>
+                    </div>
+                    <div class="result-text">
+                        <div class="number">${formatPhoneNumber(number)}</div>
+                        <div class="status">${isValid ? '✅ Active WhatsApp account' : '❌ Not registered on WhatsApp'}</div>
+                    </div>
+                `;
+                
+                resultsContainer.appendChild(resultItem);
+            }
+            
+            function addErrorResult(message) {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item error-item';
+                resultItem.innerHTML = `
+                    <div class="result-icon">
+                        <i class="fas fa-exclamation-triangle error-icon"></i>
+                    </div>
+                    <div class="result-text">
+                        <div>${message}</div>
+                    </div>
+                `;
+                resultsContainer.appendChild(resultItem);
+            }
+            
+            function formatPhoneNumber(num) {
+                const cleaned = num.replace(/\D/g, '');
+                const formatted = '+' + cleaned;
+                
+                if (formatted.startsWith('+1') && cleaned.length === 11) {
+                    return formatted.replace(/(\+\d)(\d{3})(\d{3})(\d{4})/, '$1 ($2) $3-$4');
+                }
+                if (formatted.startsWith('+44') && cleaned.length === 11) {
+                    return formatted.replace(/(\+\d{2})(\d{4})(\d{6})/, '$1 $2 $3');
+                }
+                if (formatted.startsWith('+91') && cleaned.length === 12) {
+                    return formatted.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1 $2 $3');
+                }
+                return formatted;
+            }
+            
+            function updateSummary() {
+                summary.style.display = 'flex';
+                validCount.textContent = verificationStats.valid;
+                invalidCount.textContent = verificationStats.invalid;
+                errorCount.textContent = verificationStats.errors;
+            }
+        });
+    </script>
+</body>
+</html>
