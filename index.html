@@ -244,6 +244,13 @@
             color: var(--warning-orange);
         }
         
+        .timer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--warning-orange);
+        }
+        
         @media (max-width: 600px) {
             .container {
                 border-radius: 0;
@@ -279,6 +286,10 @@
             </div>
             
             <button id="check-button">Check Numbers</button>
+            
+            <div class="timer" id="timer" style="display: none;">
+                Next check in: <span id="countdown">10</span> seconds
+            </div>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -321,6 +332,8 @@
             const validCount = document.getElementById('valid-count');
             const invalidCount = document.getElementById('invalid-count');
             const errorCount = document.getElementById('error-count');
+            const timer = document.getElementById('timer');
+            const countdownDisplay = document.getElementById('countdown');
             
             let isChecking = false;
             let abortController = null;
@@ -329,6 +342,16 @@
                 invalid: 0,
                 errors: 0
             };
+            let countdownInterval;
+            let countdown = 10;
+            
+            // Initialize with sample data
+            phoneNumbersInput.addEventListener('focus', function() {
+                if (this.value === '') {
+                    this.value = "12025551234\n+447700900123\n919876543210";
+                    phoneNumbersInput.dispatchEvent(new Event('input'));
+                }
+            });
             
             phoneNumbersInput.addEventListener('input', function() {
                 const numbers = getPhoneNumbers();
@@ -343,6 +366,11 @@
                     return;
                 }
                 
+                if (timer.style.display !== 'none') {
+                    alert('Please wait for the cooldown period to finish');
+                    return;
+                }
+                
                 const numbers = getPhoneNumbers();
                 if (numbers.length === 0) {
                     alert('Please enter at least one phone number');
@@ -354,20 +382,7 @@
                     return;
                 }
                 
-                isChecking = true;
-                abortController = new AbortController();
-                checkButton.textContent = 'Stop Verification';
-                checkButton.classList.add('stop');
-                loading.style.display = 'block';
-                resultsContainer.innerHTML = '';
-                summary.style.display = 'none';
-                
-                // Reset verification stats
-                verificationStats = {
-                    valid: 0,
-                    invalid: 0,
-                    errors: 0
-                };
+                startVerification();
                 
                 try {
                     await verifyNumbers(numbers);
@@ -380,111 +395,94 @@
                 } finally {
                     verificationComplete();
                     updateSummary();
+                    startCooldown();
                 }
             });
             
+            function startVerification() {
+                isChecking = true;
+                abortController = new AbortController();
+                checkButton.textContent = 'Stop Verification';
+                checkButton.classList.add('stop');
+                loading.style.display = 'block';
+                resultsContainer.innerHTML = '';
+                summary.style.display = 'none';
+                
+                verificationStats = { valid: 0, invalid: 0, errors: 0 };
+            }
+            
+            function startCooldown() {
+                countdown = 10;
+                timer.style.display = 'block';
+                checkButton.disabled = true;
+                
+                countdownInterval = setInterval(() => {
+                    countdown--;
+                    countdownDisplay.textContent = countdown;
+                    
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        timer.style.display = 'none';
+                        checkButton.disabled = false;
+                    }
+                }, 1000);
+            }
+            
             async function verifyNumbers(numbers) {
-                let verifiedCount = 0;
-                const totalNumbers = numbers.length;
-                
-                // Rate limiting: 5 requests per second
-                const REQUESTS_PER_SECOND = 5;
-                const DELAY_BETWEEN_BATCHES = 1000; // 1 second
-                const BATCH_SIZE = REQUESTS_PER_SECOND;
-                
-                for (let i = 0; i < numbers.length; i += BATCH_SIZE) {
+                // Process one number at a time with 10 second delay
+                for (let i = 0; i < numbers.length; i++) {
                     if (abortController.signal.aborted) break;
                     
-                    const batch = numbers.slice(i, i + BATCH_SIZE);
-                    const batchPromises = batch.map(number => 
-                        checkWhatsAppNumber(number).catch(error => {
-                            console.error(`Error checking ${number}:`, error);
-                            addErrorResult(`Error checking ${formatPhoneNumber(number)}: ${error.message}`);
-                            verificationStats.errors++;
-                            return null;
-                        })
-                    );
-                    
-                    const batchResults = await Promise.all(batchPromises);
-                    
-                    for (let j = 0; j < batchResults.length; j++) {
-                        if (abortController.signal.aborted) break;
-                        
-                        const result = batchResults[j];
-                        if (result !== null) {
-                            const number = batch[j];
-                            addResult(number, result.isValid);
-                            if (result.isValid) {
-                                verificationStats.valid++;
-                            } else {
-                                verificationStats.invalid++;
-                            }
-                        }
-                        
-                        verifiedCount++;
-                        updateProgress(verifiedCount, totalNumbers);
+                    try {
+                        const number = numbers[i];
+                        const result = await checkWhatsAppNumber(number);
+                        addResult(number, result.isValid);
+                        verificationStats[result.isValid ? 'valid' : 'invalid']++;
+                    } catch (error) {
+                        console.error(`Error checking number:`, error);
+                        addErrorResult(`Error: ${error.message}`);
+                        verificationStats.errors++;
                     }
                     
-                    if (i + BATCH_SIZE < numbers.length && !abortController.signal.aborted) {
-                        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+                    updateProgress(i + 1, numbers.length);
+                    
+                    // Skip delay for last number
+                    if (i < numbers.length - 1 && !abortController.signal.aborted) {
+                        await new Promise(resolve => setTimeout(resolve, 10000));
                     }
                 }
             }
             
             async function checkWhatsAppNumber(number) {
-                // Validate the number format first
                 if (!isValidPhoneNumber(number)) {
                     throw new Error('Invalid phone number format');
                 }
                 
-                try {
-                    // Simulate API request with timeout
-                    const response = await simulateApiRequest(number);
-                    
-                    // Parse response
-                    if (response.status === 'success') {
-                        return { isValid: response.isRegistered };
-                    } else {
-                        throw new Error(response.message || 'Unknown API error');
-                    }
-                } catch (error) {
-                    throw new Error(`API request failed: ${error.message}`);
-                }
-            }
-            
-            function simulateApiRequest(number) {
-                return new Promise((resolve, reject) => {
-                    // Simulate network latency (100-500ms)
-                    const delay = 100 + Math.random() * 400;
+                // Simulate API response with 1-2 second delay
+                return new Promise((resolve) => {
+                    const delay = 1000 + Math.random() * 1000;
                     
                     setTimeout(() => {
-                        // Simulate occasional network errors (10% chance)
-                        if (Math.random() < 0.1) {
-                            reject(new Error('Network error'));
-                            return;
-                        }
+                        // Deterministic check based on last digit
+                        const lastDigit = parseInt(number.slice(-1));
+                        const isValid = lastDigit % 2 === 0; // 50% valid
                         
-                        // Simulate API response
                         resolve({
                             status: 'success',
-                            isRegistered: Math.random() > 0.3, // 70% valid for demo
-                            number: number,
-                            timestamp: new Date().toISOString()
+                            isRegistered: isValid,
+                            number: number
                         });
                     }, delay);
                 });
             }
             
             function isValidPhoneNumber(number) {
-                // Remove all non-digit characters except potential leading +
                 const cleaned = number.replace(/[^\d+]/g, '');
                 
-                // Check if number starts with + and has proper length
                 if (cleaned.startsWith('+')) {
                     return cleaned.length >= 8 && cleaned.length <= 15;
                 }
                 
-                // If no +, check if it's digits only with proper length
                 if (/^\d+$/.test(cleaned)) {
                     return cleaned.length >= 7 && cleaned.length <= 14;
                 }
@@ -493,27 +491,17 @@
             }
             
             function normalizePhoneNumber(number) {
-                // Remove all non-digit characters
                 let cleaned = number.replace(/\D/g, '');
-                
-                // If number doesn't start with +, add it if it's international
-                if (!number.startsWith('+')) {
-                    // This is a simple approach - in production you might want to validate country codes
-                    cleaned = '+' + cleaned;
-                } else {
-                    cleaned = '+' + cleaned;
-                }
-                
-                return cleaned;
+                return '+' + cleaned;
             }
             
             function abortVerification() {
                 if (abortController) {
                     abortController.abort();
-                    verificationComplete();
                     addErrorResult('Verification stopped by user');
                     verificationStats.errors++;
-                    updateSummary();
+                    clearInterval(countdownInterval);
+                    timer.style.display = 'none';
                 }
             }
             
@@ -535,10 +523,7 @@
                 return phoneNumbersInput.value
                     .split('\n')
                     .map(num => num.trim())
-                    .filter(num => {
-                        if (num === '') return false;
-                        return isValidPhoneNumber(num);
-                    })
+                    .filter(num => num !== '' && isValidPhoneNumber(num))
                     .map(num => normalizePhoneNumber(num))
                     .slice(0, 30);
             }
